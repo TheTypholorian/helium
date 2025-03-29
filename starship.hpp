@@ -21,10 +21,15 @@ namespace He {
 
 	class Component {
 	public:
+		virtual void frame(GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat) = 0;
+	};
+
+	class BasicComponent : public Component {
+	public:
 		GLuint tex;
 		GLuint64 bindless;
 
-		Component() {
+		BasicComponent() {
 			glCreateTextures(GL_TEXTURE_2D, 1, &tex);
 
 			glBindTexture(GL_TEXTURE_2D, tex);
@@ -57,8 +62,16 @@ namespace He {
 			upload(data, c == 1 ? GL_RED : c == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE);
 		}
 
-		virtual void frame(huint x, huint y, huint i, Starship* ship, GLuint64* textures) {
+		void frame(GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat) {
 			textures[i] = bindless;
+		}
+	};
+
+	struct Light {
+	public:
+		GLfloat rad, r, g, b, x, y;
+
+		Light(GLfloat rad, GLfloat r, GLfloat g, GLfloat b, GLfloat x, GLfloat y) : rad(rad), r(r), g(g), b(b), x(x), y(y) {
 		}
 	};
 
@@ -75,6 +88,7 @@ namespace He {
 	class Starship {
 	public:
 		const huint width, height, len;
+		float rot = 0, x = 0, y = 0, vx = 0, vy = 0, speed = 10;
 		GLuint vao, vPos, ebo, uTex;
 		Component** comps;
 
@@ -149,7 +163,66 @@ namespace He {
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 		}
 
-		void render(StarshipShader shader, mat4 mat) {
+		virtual void render(StarshipShader shader, float zoom, GLFWwindow* window, double delta, float ar) {
+			if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+				rot += delta * 90;
+			}
+			
+			if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+				rot -= delta * 90;
+			}
+
+			float acc = 0;
+
+			if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+				acc += speed;
+			}
+			
+			if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+				acc -= speed;
+			}
+
+			float rad = radians(rot), rad90 = radians(rot + 90);
+
+			vx += cos(rad90) * acc * delta;
+			vy += sin(rad90) * acc * delta;
+			x += vx * delta;
+			y += vy * delta;
+
+			const float max = 50;
+
+			if (x > max) {
+				x = max;
+				vx = 0;
+			}
+
+			if (x < -max) {
+				x = -max;
+				vx = 0;
+			}
+
+			if (y > max) {
+				y = max;
+				vy = 0;
+			}
+
+			if (y < -max) {
+				y = -max;
+				vy = 0;
+			}
+
+			mat4 mat = mat4(1);
+
+			mat = scale(mat, ar > 1 ? vec3(1, ar, 1) : ar < 1 ? vec3(ar, 1, 1) : vec3(1, 1, 1));
+
+			mat = scale(mat, vec3(zoom));
+
+			mat = translate(mat, vec3(x, y, 0));
+
+			mat = rotate(mat, rad, vec3(0, 0, 1));
+
+			mat = translate(mat, vec3(-(float)width / 2, -(float)height / 2, 0));
+
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, uTex);
 
 			GLuint64* textures = (GLuint64*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_WRITE_ONLY);
@@ -161,7 +234,7 @@ namespace He {
 					Component* c = comps[i];
 
 					if (c != nullptr) {
-						c->frame(x, y, i, this, textures);
+						c->frame(window, x, y, i, this, textures, mat);
 					} else {
 						textures[i] = 0;
 					}

@@ -42,10 +42,17 @@
     <None Include="starship.vert">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="post.vert" />
+    <None Include="post.frag" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="assets\smallEngineOff.png">
       <Filter>Resource Files</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="..\argon\times.ttf">
+      <Filter>Resource Files</Filter>
+    </Font>
   </ItemGroup>
 </Project>

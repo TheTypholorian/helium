@@ -141,11 +141,16 @@
     <ResourceCompile Include=".rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="post.frag" />
+    <None Include="post.vert" />
     <None Include="starship.frag" />
     <None Include="starship.vert" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="assets\smallEngineOff.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="..\argon\times.ttf" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
