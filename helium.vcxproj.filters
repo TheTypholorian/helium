@@ -29,6 +29,9 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="particles.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include=".rc">
@@ -42,8 +45,12 @@
     <None Include="starship.vert">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="post.vert" />
-    <None Include="post.frag" />
+    <None Include="post.frag">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="post.vert">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="assets\smallEngineOff.png">

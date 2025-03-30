@@ -4,6 +4,8 @@
 #include "starship.hpp"
 #include "stackTrace.hpp"
 #include "nanovg_gl.h"
+#include <sstream>
+#include "particles.hpp"
 
 using namespace std;
 using namespace Ar;
@@ -11,6 +13,9 @@ using namespace He;
 using namespace H;
 
 static vector<Light> lights;
+static LinkedList<Particle> particles;
+
+const static int aliasW = 2, aliasH = 2;
 
 class HFrame : public GLFrame {
 public:
@@ -52,7 +57,7 @@ public:
 
 		glGenTextures(1, &tex);
 		glBindTexture(GL_TEXTURE_2D, tex);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width * 2, height * 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width * aliasW, height * aliasH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -96,18 +101,24 @@ static HFrame* hFrame;
 
 class FPSCounter : public GLComponent {
 public:
-	double last = 0;
+	double last = 0, fps = 60;
 
 	void renderThis(NVGcontext* vg, Rect2D<hushort> rect) {
 		double now = glfwGetTime();
 		double delta = now - last;
 		last = now;
 
+		double current = 1 / delta;
+		double a = 2 / fps;
+		fps = (a * current) + ((1 - a) * fps);
+
 		nvgFontSize(vg, 24);
 		nvgFontFace(vg, "Times New Roman");
 		nvgFillColor(vg, gold3);
 		nvgTextAlign(vg, NVG_ALIGN_TOP | NVG_ALIGN_LEFT);
-		nvgText(vg, 0, 0, to_string((int)(1 / delta)).data(), nullptr);
+		stringstream text;
+		text << "FPS: " << (int)fps;
+		nvgText(vg, 0, 0, text.str().data(), nullptr);
 	}
 };
 
@@ -180,13 +191,39 @@ public:
 		uploadOn(data, c == 1 ? GL_RED : c == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE);
 	}
 
-	void frame(GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat) {
+	void frame(GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat, double delta) {
 		if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
 			textures[i] = bindlessOn;
 
 			vec4 vec = mat * vec4(x + 0.5, y + 0.25, 0, 1);
+			float tx = vec.x / 2 - 0.5, ty = vec.y / 2 - 0.5;
 
-			lights.push_back(Light(hFrame->zoom / 2, (float)239/255, (float)217/255, (float)105/255, vec.x / 2 - 0.5, vec.y / 2 - 0.5));
+			lights.push_back(Light(hFrame->zoom / 2, (float)239 / 255, (float)217 / 255, (float)105 / 255, 1, tx, ty));
+
+			static random_device rd;
+			static mt19937 gen(rd());
+			static uniform_real_distribution<float> check(0, 0.1);
+			static uniform_real_distribution<float> size(0.1, 0.25);
+			static uniform_real_distribution<float> color(0, 1);
+			static uniform_real_distribution<float> alpha(2, 5);
+			static uniform_real_distribution<float> vel(-0.01, 0.01);
+			static uniform_real_distribution<float> life(0.25, 1);
+
+			if (check(gen) <= delta) {
+				float col = color(gen);
+				particles.addFirst(Particle(
+					size(gen),
+					((float)206 / 255) * col + ((float)255 / 255) * (1 - col),
+					((float)175 / 255) * col + ((float)247 / 255) * (1 - col),
+					((float)0 / 255) * col + ((float)216 / 255) * (1 - col),
+					alpha(gen),
+					tx,
+					ty,
+					vel(gen),
+					vel(gen),
+					life(gen)
+				));
+			}
 		} else {
 			textures[i] = bindlessOff;
 		}
@@ -239,7 +276,7 @@ int main() {
 	//ship.comps[5] = &plating;
 	//ship.comps[6] = &plating;
 	//ship.comps[7] = &plating;
-	
+
 	//ship.comps[8] = &engine;
 	//ship.comps[9] = &plating;
 	ship.comps[10] = &plating;
@@ -248,7 +285,7 @@ int main() {
 	ship.comps[13] = &plating;
 	ship.comps[14] = &plating;
 	ship.comps[15] = &plating;
-	
+
 	ship.comps[16] = &engine;
 	ship.comps[17] = &plating;
 	ship.comps[18] = &plating;
@@ -276,19 +313,19 @@ int main() {
 	GLint* buf = (GLint*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 	buf[0] = -1;
 	buf[1] = -1;
-	
+
 	buf[2] = 1;
 	buf[3] = -1;
-	
+
 	buf[4] = 1;
 	buf[5] = 1;
-	
+
 	buf[6] = 1;
 	buf[7] = 1;
-	
+
 	buf[8] = -1;
 	buf[9] = 1;
-	
+
 	buf[10] = -1;
 	buf[11] = -1;
 	glUnmapBuffer(GL_ARRAY_BUFFER);
@@ -307,7 +344,6 @@ int main() {
 	glfwGetFramebufferSize(hFrame->handle, &width, &height);
 	hFrame->framebufferSize(hFrame->handle, width, height);
 
-
 	while (!glfwWindowShouldClose(hFrame->handle)) {
 		double now = glfwGetTime();
 		double delta = now - last;
@@ -324,20 +360,16 @@ int main() {
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		//glViewport(0, 0, width, height);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, hFrame->fbo);
-		glViewport(0, 0, width * 2, height * 2);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		glBindTexture(GL_TEXTURE_2D, hFrame->tex);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width * 2, height * 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-		glBindTexture(GL_TEXTURE_2D, 0);
-
 		glClearColor(0.05, 0.05, 0.05, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, hFrame->fbo);
+
+		glBindTexture(GL_TEXTURE_2D, hFrame->tex);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width * aliasW, height * aliasH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		glViewport(0, 0, width * aliasW, height * aliasH);
 
 		glClearColor(0, 0, 0, 0.1);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -345,6 +377,12 @@ int main() {
 		ship.render(shader, hFrame->zoom, hFrame->handle, delta, ar);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		for (auto node = particles.first; node != particles.last; node = node->next) {
+			if (!node->t.frame(hFrame->zoom, delta, ar, &lights)) {
+				node->unlink();
+			}
+		}
 
 		glBindVertexArray(vao);
 		glUseProgram(post.id);
@@ -355,6 +393,7 @@ int main() {
 		glUniform1i(glGetUniformLocation(post.id, "uTex"), 0);
 		glUniform1ui(glGetUniformLocation(post.id, "uNumLights"), lights.size());
 		glUniform2fv(glGetUniformLocation(post.id, "uAspectRatio"), 1, (GLfloat*)value_ptr(ar > 1 ? vec2(1, ar) : ar < 1 ? vec2(ar, 1) : vec2(1, 1)));
+		//glUniform2ui(glGetUniformLocation(post.id, "uAliasSize"), aliasW, aliasH);
 
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, lights.size() * sizeof(Light), lights.data(), GL_STATIC_DRAW);

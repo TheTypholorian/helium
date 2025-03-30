@@ -21,7 +21,7 @@ namespace He {
 
 	class Component {
 	public:
-		virtual void frame(GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat) = 0;
+		virtual void frame(GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat, double delta) = 0;
 	};
 
 	class BasicComponent : public Component {
@@ -62,16 +62,16 @@ namespace He {
 			upload(data, c == 1 ? GL_RED : c == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE);
 		}
 
-		void frame(GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat) {
+		void frame(GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat, double delta) {
 			textures[i] = bindless;
 		}
 	};
 
 	struct Light {
 	public:
-		GLfloat rad, r, g, b, x, y;
+		GLfloat rad, r, g, b, a, x, y;
 
-		Light(GLfloat rad, GLfloat r, GLfloat g, GLfloat b, GLfloat x, GLfloat y) : rad(rad), r(r), g(g), b(b), x(x), y(y) {
+		Light(GLfloat rad, GLfloat r, GLfloat g, GLfloat b, GLfloat a, GLfloat x, GLfloat y) : rad(rad), r(r), g(g), b(b), a(a), x(x), y(y) {
 		}
 	};
 
@@ -234,7 +234,7 @@ namespace He {
 					Component* c = comps[i];
 
 					if (c != nullptr) {
-						c->frame(window, x, y, i, this, textures, mat);
+						c->frame(window, x, y, i, this, textures, mat, delta);
 					} else {
 						textures[i] = 0;
 					}

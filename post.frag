@@ -4,33 +4,35 @@ in vec2 fPos;
 
 out vec4 oCol;
 
-uniform sampler2D uTex;
-
 struct Light {
-	float rad, r, g, b, x, y;
+	float rad, r, g, b, a, x, y;
 };
 
 layout(std430, binding = 0) buffer Lights {
     Light uLights[];
 };
 
+uniform sampler2D uTex;
 uniform uint uNumLights;
-
 uniform vec2 uAspectRatio = vec2(1);
+uniform ivec2 uAliasSize = ivec2(2);
 
 void main() {
 	ivec2 size = textureSize(uTex, 0);
 
 	vec4 col = vec4(0);
+	uint i = 0;
 
-	ivec2 o = ivec2(gl_FragCoord.xy) * 2;
+	ivec2 o = ivec2(gl_FragCoord.xy) * uAliasSize;
 
-	col += texelFetch(uTex, o, 0);
-	col += texelFetch(uTex, ivec2(o.x + 1, o.y), 0);
-	col += texelFetch(uTex, ivec2(o.x + 1, o.y + 1), 0);
-	col += texelFetch(uTex, ivec2(o.x, o.y + 1), 0);
+	for (uint x = 0; x < uAliasSize.x; x++) {
+		for (uint y = 0; y < uAliasSize.y; y++) {
+			col += texelFetch(uTex, ivec2(o.x + x, o.y + y), 0);
+			i++;
+		}
+	}
 
-	col /= 4;
+	col /= i;
 
 	for (uint i = 0; i < uNumLights; i++) {
 		Light light = uLights[i];
@@ -38,9 +40,12 @@ void main() {
 		float dist = sqrt(d.x * d.x + d.y * d.y);
 
 		if (dist <= light.rad) {
-			col.xyz += vec3(light.r, light.g, light.b) * (1 - dist / light.rad);
+			col += vec4(light.r, light.g, light.b, light.a) * (1 - dist / light.rad);
 		}
 	}
+
+	col.xyz *= col.a;
+	col.a = 1;
 
 	oCol = col;
 }

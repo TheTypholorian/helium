@@ -134,6 +134,7 @@
     <ClCompile Include="helium.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="particles.hpp" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="starship.hpp" />
   </ItemGroup>
