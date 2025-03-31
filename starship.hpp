@@ -19,9 +19,19 @@ namespace He {
 
 	class Starship;
 
+	class StarshipShader : public Shader {
+	public:
+		StarshipShader() : Shader() {
+			attach(GL_VERTEX_SHADER, loadRes(L"starship.vert", RT_RCDATA));
+			attach(GL_FRAGMENT_SHADER, loadRes(L"starship.frag", RT_RCDATA));
+
+			link();
+		}
+	};
+
 	class Component {
 	public:
-		virtual void frame(GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat, double delta) = 0;
+		virtual void frame(StarshipShader* shader, GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat, double delta, float zoom, float ar) = 0;
 	};
 
 	class BasicComponent : public Component {
@@ -62,7 +72,7 @@ namespace He {
 			upload(data, c == 1 ? GL_RED : c == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE);
 		}
 
-		void frame(GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat, double delta) {
+		void frame(StarshipShader* shader, GLFWwindow* window, huint x, huint y, huint i, Starship* ship, GLuint64* textures, mat4 mat, double delta, float zoom, float ar) {
 			textures[i] = bindless;
 		}
 	};
@@ -75,21 +85,20 @@ namespace He {
 		}
 	};
 
-	class StarshipShader : public Shader {
+	struct LineLight {
 	public:
-		StarshipShader() : Shader() {
-			attach(GL_VERTEX_SHADER, loadRes(L"starship.vert", RT_RCDATA));
-			attach(GL_FRAGMENT_SHADER, loadRes(L"starship.frag", RT_RCDATA));
+		GLfloat rad, r, g, b, a, x1, y1, x2, y2;
 
-			link();
+		LineLight(GLfloat rad, GLfloat r, GLfloat g, GLfloat b, GLfloat a, GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2) : rad(rad), r(r), g(g), b(b), a(a), x1(x1), y1(y1), x2(x2), y2(y2) {
 		}
 	};
 
 	class Starship {
 	public:
 		const huint width, height, len;
-		float rot = 0, x = 0, y = 0, vx = 0, vy = 0, speed = 10;
+		float rot = 0, x = 0, y = 0, vx = 0, vy = 0, speed = 5;
 		GLuint vao, vPos, ebo, uTex;
+		GLuint64* textures;
 		Component** comps;
 
 		Starship(const huint width, const huint height) : width(width), height(height), comps(new Component*[width * height]()), len(width* height * 6) {
@@ -159,26 +168,28 @@ namespace He {
 			glGenBuffers(1, &uTex);
 
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, uTex);
-			glBufferData(GL_SHADER_STORAGE_BUFFER, width * height * sizeof(GLuint64), nullptr, GL_STATIC_DRAW);
+			GLuint size = width * height * sizeof(GLuint64);
+			glBufferStorage(GL_SHADER_STORAGE_BUFFER, size, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+			textures = (GLuint64*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, size, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 		}
 
-		virtual void render(StarshipShader shader, float zoom, GLFWwindow* window, double delta, float ar) {
-			if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+		virtual void render(StarshipShader* shader, float zoom, GLFWwindow* window, double delta, float ar) {
+			if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
 				rot += delta * 90;
 			}
 			
-			if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+			if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
 				rot -= delta * 90;
 			}
 
 			float acc = 0;
 
-			if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+			if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
 				acc += speed;
 			}
 			
-			if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+			if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
 				acc -= speed;
 			}
 
@@ -223,10 +234,6 @@ namespace He {
 
 			mat = translate(mat, vec3(-(float)width / 2, -(float)height / 2, 0));
 
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, uTex);
-
-			GLuint64* textures = (GLuint64*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_WRITE_ONLY);
-
 			huint i = 0;
 
 			for (huint x = 0, dx = 0; x < width; x++, dx += compSize) {
@@ -234,7 +241,7 @@ namespace He {
 					Component* c = comps[i];
 
 					if (c != nullptr) {
-						c->frame(window, x, y, i, this, textures, mat, delta);
+						c->frame(shader, window, x, y, i, this, textures, mat, delta, zoom, ar);
 					} else {
 						textures[i] = 0;
 					}
@@ -243,18 +250,14 @@ namespace He {
 				}
 			}
 
-			glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
 			glBindVertexArray(vao);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-			glUseProgram(shader.id);
+			glUseProgram(shader->id);
 
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, uTex);
 
-			glUniform1i(glGetUniformLocation(shader.id, "uTex"), 0);
-			glUniformMatrix4fv(glGetUniformLocation(shader.id, "uMat"), 1, GL_FALSE, value_ptr(mat));
+			glUniform1i(glGetUniformLocation(shader->id, "uTex"), 0);
+			glUniformMatrix4fv(glGetUniformLocation(shader->id, "uMat"), 1, GL_FALSE, value_ptr(mat));
 
 			glDrawElements(GL_TRIANGLES, len, GL_UNSIGNED_INT, 0);
 

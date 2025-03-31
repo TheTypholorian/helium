@@ -119,6 +119,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;GLEW_STATIC;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\Users\evan\CppProjects\hydrogen\;C:\Users\evan\CppProjects\argon\;C:\Users\evan\CppProjects\libs\glew\include\GL\;C:\Users\evan\CppProjects\libs\glfw\include\GLFW\;C:\Users\evan\CppProjects\libs\nanovg\;C:\Users\evan\CppProjects\libs\glm\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

@@ -1,8 +1,13 @@
 starship.vert RCDATA "starship.vert"
 starship.frag RCDATA "starship.frag"
+
 post.vert RCDATA "post.vert"
 post.frag RCDATA "post.frag"
+
 engine/small/off.png RCDATA "assets/engine/small/off.png"
 engine/small/on.png RCDATA "assets/engine/small/on.png"
 structure/plating.png RCDATA "assets/structure/plating.png"
+weapons/pds/turret/base.png RCDATA "assets/weapons/pds/turret/base.png"
+weapons/pds/turret/gun.png RCDATA "assets/weapons/pds/turret/gun.png"
+
 times.ttf RCDATA "times.ttf"

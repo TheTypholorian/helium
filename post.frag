@@ -12,8 +12,19 @@ layout(std430, binding = 0) buffer Lights {
     Light uLights[];
 };
 
-uniform sampler2D uTex;
 uniform uint uNumLights;
+
+struct LineLight {
+	float rad, r, g, b, a, x1, y1, x2, y2;
+};
+
+layout(std430, binding = 1) buffer LineLights {
+    LineLight uLineLights[];
+};
+
+uniform uint uNumLineLights;
+
+uniform sampler2D uTex;
 uniform vec2 uAspectRatio = vec2(1);
 uniform ivec2 uAliasSize = ivec2(2);
 
@@ -41,6 +52,31 @@ void main() {
 
 		if (dist <= light.rad) {
 			col += vec4(light.r, light.g, light.b, light.a) * (1 - dist / light.rad);
+		}
+	}
+
+	if (uNumLineLights != 0) {
+		vec2 fp = fPos / uAspectRatio;
+
+		for (uint i = 0; i < uNumLineLights; i++) {
+			LineLight light = uLineLights[i];
+
+			vec2 v = vec2(light.x1, light.y1) / uAspectRatio;
+			vec2 w = vec2(light.x2, light.y2) / uAspectRatio;
+
+			float dist = 0;
+			vec2 d = w - v;
+			float l2 = dot(d, d);
+
+			if (l2 == 0) {
+				dist = distance(fp, v);
+			} else {
+				dist = distance(fp, v + clamp(dot(fp - v, d) / l2, 0, 1) * d);
+			}
+
+			if (dist <= light.rad) {
+				col += vec4(light.r, light.g, light.b, light.a) * (1 - dist / light.rad);
+			}
 		}
 	}
 
