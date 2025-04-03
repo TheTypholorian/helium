@@ -4,6 +4,9 @@ starship.frag RCDATA "starship.frag"
 post.vert RCDATA "post.vert"
 post.frag RCDATA "post.frag"
 
+light.vert RCDATA "light.vert"
+light.frag RCDATA "light.frag"
+
 engine/small/off.png RCDATA "assets/engine/small/off.png"
 engine/small/on.png RCDATA "assets/engine/small/on.png"
 structure/plating.png RCDATA "assets/structure/plating.png"

@@ -135,7 +135,6 @@
     <ClCompile Include="helium.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="particles.hpp" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="starship.hpp" />
   </ItemGroup>
@@ -143,6 +142,8 @@
     <ResourceCompile Include=".rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="light.frag" />
+    <None Include="light.vert" />
     <None Include="post.frag" />
     <None Include="post.vert" />
     <None Include="starship.frag" />
