@@ -12,6 +12,9 @@ using namespace H;
 class FPSCounter : public GLComponent {
 public:
 	double last = 0, fps = 60;
+	Universe* universe;
+
+	FPSCounter(Universe* universe) : universe(universe) {}
 
 	void renderThis(NVGcontext* vg, Rect2D<uint16_t> rect) {
 		double now = glfwGetTime();
@@ -22,13 +25,20 @@ public:
 		double a = 2 / fps;
 		fps = (a * current) + ((1 - a) * fps);
 
-		nvgFontSize(vg, 24);
-		nvgFontFace(vg, "Times New Roman");
-		nvgFillColor(vg, gold3);
-		nvgTextAlign(vg, NVG_ALIGN_TOP | NVG_ALIGN_LEFT);
 		stringstream text;
-		text << "FPS: " << (int)fps;
-		nvgText(vg, 0, 0, text.str().data(), nullptr);
+		text << "Helium " << (int)fps;
+
+		glfwSetWindowTitle(universe->frame->handle, text.str().data());
+
+		//cout << (int)fps << endl;
+
+		//nvgFontSize(vg, 24);
+		//nvgFontFace(vg, "Times New Roman");
+		//nvgFillColor(vg, gold3);
+		//nvgTextAlign(vg, NVG_ALIGN_TOP | NVG_ALIGN_LEFT);
+		//stringstream text;
+		//text << "FPS: " << (int)fps;
+		//nvgText(vg, 0, 0, text.str().data(), nullptr);
 	}
 };
 
@@ -73,10 +83,16 @@ int main() {
 
 	Universe universe = Universe(frame);
 
-	//universe.frame->children.addFirst(new FPSCounter());
-	universe.frame->children.addFirst(&universe);
+	universe.frame->children.addFirst(new FPSCounter(&universe));
+	//universe.masses.push_back(new OrbitalMass(0, 0, 0, 0, 5.97219e24));
 
 	Starship ship(5, 8);
+
+	universe.masses.push_back(&ship.mass);
+
+	ship.mass.y = 0;
+	ship.mass.vx = 0;
+	ship.mass.mass = 5;
 
 	stbi_set_flip_vertically_on_load(true);
 
@@ -147,6 +163,26 @@ int main() {
 		universe.startFrame();
 
 		ship.render(&universe);
+
+		/*
+		for (OrbitalMass* mass : universe.masses) {
+			mat4 mat = mat4(1);
+
+			if (mass->mass > 5000000) {
+				mat = scale(mat, vec3(6378 * 2));
+			} else {
+				mat = scale(mat, vec3(500 * 2));
+			}
+
+			mat = translate(mat, vec3(mass->x - 1, mass->y - 1, 0));
+
+			mat = scale(mat, vec3(2));
+
+			universe.lights.push_back(Light(mat, 0.5, 0.7, 0.3, 10));
+		}
+
+		cout << ship.mass.x << " " << ship.mass.y << endl;
+		*/
 
 		universe.postFrame();
 

@@ -21,6 +21,23 @@ namespace He {
 
 	class Starship;
 
+	struct Universe;
+
+	struct OrbitalMass {
+	public:
+		float x, y, vx, vy, mass;
+
+		OrbitalMass(float x, float y, float vx, float vy, float mass) : x(x), y(y), vx(vx), vy(vy), mass(mass) {}
+
+		OrbitalMass(float x, float y, float mass) : x(x), y(y), vx(0), vy(0), mass(mass) {}
+
+		OrbitalMass(float mass) : x(0), y(0), vx(0), vy(0), mass(mass) {}
+
+		void update(OrbitalMass* other, Universe* universe);
+
+		void frame(Universe* universe);
+	};
+
 	struct Light;
 
 	struct LineLight;
@@ -43,9 +60,10 @@ namespace He {
 		NVGcontext* vg;
 		double last = 0, delta = 0;
 		float aRatio = 1, zoom = 0.05;
-		vec2 uRatio = vec2(1);
+		mat4 viewMat = mat4(1);
 		vector<Light> lights;
-		vector<LineLight> lineLights;
+		//vector<LineLight> lineLights;
+		vector<OrbitalMass*> masses;
 		LinkedList<Particle> particles = LinkedList<Particle>();
 
 		Shader* postShader;
@@ -53,6 +71,8 @@ namespace He {
 		GLuint fbo, tex, vao, vbo, lightBuf, lineBuf;
 
 		Universe(GLFrame* frame) : frame(frame) {
+			frame->children.addFirst(this);
+
 			glfwMakeContextCurrent(frame->handle);
 			vg = nvgCreateGL3(NVG_ANTIALIAS | NVG_DEBUG);
 
@@ -131,13 +151,14 @@ namespace He {
 			last = now;
 
 			lights.clear();
-			lineLights.clear();
+			//lineLights.clear();
 
 			int width, height;
 			glfwGetFramebufferSize(frame->handle, &width, &height);
 
 			aRatio = (float)width / height;
-			uRatio = aRatio > 1 ? vec2(1, aRatio) : vec2(aRatio, 1);
+
+			viewMat = scale(mat4(1), aRatio > 1 ? vec3(zoom, aRatio * zoom, zoom) : vec3(aRatio * zoom, zoom, zoom));
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -156,6 +177,18 @@ namespace He {
 
 			glClearColor(0, 0, 0, 0.1);
 			glClear(GL_COLOR_BUFFER_BIT);
+
+			//for (OrbitalMass* mass : masses) {
+			//	for (OrbitalMass* other : masses) {
+			//		if (mass != other) {
+			//			mass->update(other, this);
+			//		}
+			//	}
+			//}
+
+			for (OrbitalMass* mass : masses) {
+				mass->frame(this);
+			}
 		}
 
 		void postFrame();
@@ -184,6 +217,27 @@ namespace He {
 		}
 	};
 
+	void OrbitalMass::update(OrbitalMass* other, Universe* universe) {
+		if (other->x != x && other->y != y) {
+			const float G = (6.67430e-11);
+
+			float diffX = other->x - x;
+			float diffY = other->y - y;
+			float distSq = diffX * diffX + diffY * diffY;
+			float dDist = sqrt(distSq);
+
+			float force = G * mass * other->mass / distSq;
+
+			vx += force / mass * diffX / dDist * universe->delta;
+			vy += force / mass * diffY / dDist * universe->delta;
+		}
+	}
+
+	void OrbitalMass::frame(Universe* universe) {
+		x += vx * universe->delta;
+		y += vy * universe->delta;
+	}
+
 	struct Light {
 	public:
 		mat4 mat;
@@ -191,7 +245,7 @@ namespace He {
 
 		Light(mat4 mat, GLfloat r, GLfloat g, GLfloat b, GLfloat a) : mat(mat), r(r), g(g), b(b), a(a) {}
 
-		void render() {
+		void render(Universe* universe) {
 			static GLuint vao = 0, vbo = 0, ebo = 0;
 			static Shader shader;
 
@@ -247,6 +301,7 @@ namespace He {
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 			glUseProgram(shader.id);
 
+			glUniformMatrix4fv(glGetUniformLocation(shader.id, "uView"), 1, false, value_ptr(universe->viewMat));
 			glUniformMatrix4fv(glGetUniformLocation(shader.id, "uMat"), 1, false, value_ptr(mat));
 			glUniform4f(glGetUniformLocation(shader.id, "uCol"), r, g, b, a);
 
@@ -258,19 +313,15 @@ namespace He {
 		}
 	};
 
-	struct LineLight {
-	public:
-		GLfloat rad, r, g, b, a, x1, y1, x2, y2;
-
-		LineLight(GLfloat rad, GLfloat r, GLfloat g, GLfloat b, GLfloat a, GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2) : rad(rad), r(r), g(g), b(b), a(a), x1(x1), y1(y1), x2(x2), y2(y2) {}
-	};
+	using ParticleUpdater = mat4(*)(Particle*);
 
 	struct Particle {
 	public:
-		const float maxLife;
-		float rad, r, g, b, a, x, y, vx, vy, life;
+		Light light;
+		ParticleUpdater updater;
+		float maxLife, life;
 
-		Particle(float rad, float r, float g, float b, float a, float x, float y, float vx = 0, float vy = 0, float life = 0) : rad(rad), r(r), g(g), b(b), a(a), x(x), y(y), vx(vx), vy(vy), life(life), maxLife(life) {}
+		Particle(Light light, ParticleUpdater updater, float life = 0) : light(light), updater(updater), life(life), maxLife(life) {}
 
 		bool frame(Universe* universe) {
 			if (maxLife != 0) {
@@ -281,12 +332,9 @@ namespace He {
 				}
 			}
 
-			x += vx * universe->delta;
-			y += vy * universe->delta;
+			updater(this);
 
-			float f = maxLife == 0 ? 1 : life / maxLife;
-
-			//universe->lights.push_back(Light(universe->zoom * rad * f, r * f, g * f, b * f, a * f, x, y));
+			universe->lights.push_back(light);
 
 			return true;
 		}
@@ -297,7 +345,8 @@ namespace He {
 	class Starship {
 	public:
 		uint32_t width, height, len;
-		float rot = 0, x = 0, y = 0, vx = 0, vy = 0, speed = 5;
+		OrbitalMass mass = OrbitalMass(5);
+		float rot = 0, speed = 5;
 		GLuint vao, vPos, ebo, uTex;
 		GLuint64* textures;
 		Component** comps;
@@ -501,40 +550,34 @@ namespace He {
 
 		float rad = radians(rot), rad90 = radians(rot + 90);
 
-		vx += cos(rad90) * acc * universe->delta;
-		vy += sin(rad90) * acc * universe->delta;
-		x += vx * universe->delta;
-		y += vy * universe->delta;
+		mass.vx += cos(rad90) * acc * universe->delta;
+		mass.vy += sin(rad90) * acc * universe->delta;
 
-		const float max = 50;
+		const float max = 500;
 
-		if (x > max) {
-			x = max;
-			vx = 0;
+		if (mass.x > max) {
+			mass.x = max;
+			mass.vx = 0;
 		}
 
-		if (x < -max) {
-			x = -max;
-			vx = 0;
+		if (mass.x < -max) {
+			mass.x = -max;
+			mass.vx = 0;
 		}
 
-		if (y > max) {
-			y = max;
-			vy = 0;
+		if (mass.y > max) {
+			mass.y = max;
+			mass.vy = 0;
 		}
 
-		if (y < -max) {
-			y = -max;
-			vy = 0;
+		if (mass.y < -max) {
+			mass.y = -max;
+			mass.vy = 0;
 		}
 
 		mat4 mat = mat4(1);
 
-		mat = scale(mat, vec3(universe->uRatio, 1));
-
-		mat = scale(mat, vec3(universe->zoom));
-
-		mat = translate(mat, vec3(x, y, 0));
+		mat = translate(mat, vec3(mass.x, mass.y, 0));
 
 		mat = rotate(mat, rad, vec3(0, 0, 1));
 
@@ -562,6 +605,7 @@ namespace He {
 
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, uTex);
 
+		glUniformMatrix4fv(glGetUniformLocation(universe->shipShader->id, "uView"), 1, GL_FALSE, value_ptr(universe->viewMat));
 		glUniformMatrix4fv(glGetUniformLocation(universe->shipShader->id, "uMat"), 1, GL_FALSE, value_ptr(mat));
 
 		glDrawElements(GL_TRIANGLES, len, GL_UNSIGNED_INT, 0);
@@ -775,7 +819,7 @@ namespace He {
 			int w, h;
 			glfwGetFramebufferSize(universe->frame->handle, &w, &h);
 
-			vec4 pos = mat * vec4(0, 0, 0, 1);
+			vec4 pos = universe->viewMat * mat * vec4(0, 0, 0, 1);
 
 			float px = (pos.x / 2 + 0.5) * w, py = (pos.y / 2 + 0.5) * h;
 
@@ -803,6 +847,7 @@ namespace He {
 
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, uTex);
 
+			glUniformMatrix4fv(glGetUniformLocation(universe->shipShader->id, "uViewMat"), 1, GL_FALSE, value_ptr(universe->viewMat));
 			glUniformMatrix4fv(glGetUniformLocation(universe->shipShader->id, "uMat"), 1, GL_FALSE, value_ptr(mat));
 
 			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
@@ -820,7 +865,7 @@ namespace He {
 
 				//mat = scale(mat, vec3(1, 100000, 1));
 
-				//vec3 end = mat * vec4(0.5, (float)7 / 16, 0, 1);
+				//vec4 end = universe->viewMat * mat * vec4(0.5, (float)7 / 16, 0, 1);
 
 				//universe->lineLights.push_back(LineLight(universe->zoom / 20, 1, 0.1, 0.2, 1.5, barrel.x / 2 - 0.5, barrel.y / 2 - 0.5, end.x / 2 - 0.5, end.y / 2 - 0.5));
 			}
@@ -877,7 +922,7 @@ namespace He {
 		glBlendEquation(GL_FUNC_ADD);
 
 		for (Light light : lights) {
-			light.render();
+			light.render(this);
 		}
 	}
 }
