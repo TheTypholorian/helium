@@ -74,10 +74,7 @@ namespace He {
 			frame->children.addFirst(this);
 
 			glfwMakeContextCurrent(frame->handle);
-			vg = nvgCreateGL3(NVG_ANTIALIAS | NVG_DEBUG);
-
-			string font = loadRes(L"times.ttf", RT_RCDATA);
-			nvgCreateFontMem(vg, "Times New Roman", (unsigned char*)font.data(), font.length(), true);
+			vg = nvgCreateGL3(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
 
 			glGenFramebuffers(1, &fbo);
 			glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -94,6 +91,12 @@ namespace He {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+
+			GLuint rbo;
+			glGenRenderbuffers(1, &rbo);
+			glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width * aliasW, height * aliasH);
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
 			GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (status != GL_FRAMEBUFFER_COMPLETE) {
@@ -165,7 +168,7 @@ namespace He {
 			glBlendEquation(GL_FUNC_ADD);
 
 			glClearColor(0.05, 0.05, 0.05, 1);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT);
 
 			glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
@@ -175,8 +178,8 @@ namespace He {
 
 			glViewport(0, 0, width * aliasW, height * aliasH);
 
-			glClearColor(0, 0, 0, 0.1);
-			glClear(GL_COLOR_BUFFER_BIT);
+			glClearColor(0, 0, 0, 1);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			//for (OrbitalMass* mass : masses) {
 			//	for (OrbitalMass* other : masses) {
@@ -522,6 +525,14 @@ namespace He {
 		}
 
 		virtual void render(Universe* universe);
+
+		Component* get(int x, int y) {
+			return comps[x * height + y];
+		}
+
+		void set(int x, int y, Component* comp) {
+			comps[x * height + y] = comp;
+		}
 	};
 
 	class Component {

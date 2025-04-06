@@ -15,4 +15,5 @@ void main() {
 	}
 
 	oCol = vec4(uCol.rgb * (1 - d), 1);
+	//gl_FragDepth = 2;
 }

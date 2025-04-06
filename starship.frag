@@ -12,6 +12,7 @@ layout(std430, binding = 0) buffer Textures {
 
 void main() {
 	oCol = texture(sampler2D(uTex[fTex]), fTexCoord);
+	//gl_FragDepth = 1;
 
 	if (oCol.a == 0) {
 		discard;

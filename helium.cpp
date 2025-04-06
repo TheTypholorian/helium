@@ -25,20 +25,13 @@ public:
 		double a = 2 / fps;
 		fps = (a * current) + ((1 - a) * fps);
 
+		nvgFontSize(vg, 24);
+		nvgFontFace(vg, "times");
+		nvgTextAlign(vg, NVG_ALIGN_TOP | NVG_ALIGN_LEFT);
+		nvgFillColor(vg, gold3);
 		stringstream text;
-		text << "Helium " << (int)fps;
-
-		glfwSetWindowTitle(universe->frame->handle, text.str().data());
-
-		//cout << (int)fps << endl;
-
-		//nvgFontSize(vg, 24);
-		//nvgFontFace(vg, "Times New Roman");
-		//nvgFillColor(vg, gold3);
-		//nvgTextAlign(vg, NVG_ALIGN_TOP | NVG_ALIGN_LEFT);
-		//stringstream text;
-		//text << "FPS: " << (int)fps;
-		//nvgText(vg, 0, 0, text.str().data(), nullptr);
+		text << "FPS: " << (int)fps;
+		nvgText(vg, 0, 0, text.str().data(), nullptr);
 	}
 };
 
@@ -83,6 +76,9 @@ int main() {
 
 	Universe universe = Universe(frame);
 
+	string font = loadRes(L"times.ttf", RT_RCDATA);
+	nvgCreateFontMem(universe.vg, "times", (unsigned char*)font.data(), font.length(), false);
+
 	universe.frame->children.addFirst(new FPSCounter(&universe));
 	//universe.masses.push_back(new OrbitalMass(0, 0, 0, 0, 5.97219e24));
 
@@ -102,60 +98,41 @@ int main() {
 
 	TurretComponent turret;
 
-	uint32_t i = 0;
+	ship.set(0, 0, &engine);
+	ship.set(0, 1, &plating);
+	ship.set(0, 2, &plating);
+	ship.set(0, 3, &plating);
+	ship.set(0, 4, &plating);
+	ship.set(0, 5, &turret);
 
-	ship.comps[i++] = &engine;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &turret;
-	i += 2;
-	//ship.comps[i++] = &plating;
-	//ship.comps[i++] = &plating;
+	ship.set(1, 1, &engine);
+	ship.set(1, 2, &plating);
+	ship.set(1, 3, &plating);
+	ship.set(1, 4, &plating);
+	ship.set(1, 5, &plating);
+	ship.set(1, 6, &turret);
 
-	i += 1;
-	//ship.comps[i++] = &engine;
-	ship.comps[i++] = &engine;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &turret;
-	i += 1;
-	//ship.comps[i++] = &plating;
+	ship.set(2, 1, &engine);
+	ship.set(2, 2, &plating);
+	ship.set(2, 3, &plating);
+	ship.set(2, 4, &plating);
+	ship.set(2, 5, &plating);
+	ship.set(2, 6, &plating);
+	ship.set(2, 7, &turret);
 
-	i += 1;
-	//ship.comps[i++] = &engine;
-	ship.comps[i++] = &engine;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &turret;
+	ship.set(3, 1, &engine);
+	ship.set(3, 2, &plating);
+	ship.set(3, 3, &plating);
+	ship.set(3, 4, &plating);
+	ship.set(3, 5, &plating);
+	ship.set(3, 6, &turret);
 
-	i += 1;
-	//ship.comps[i++] = &engine;
-	ship.comps[i++] = &engine;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &turret;
-	i += 1;
-	//ship.comps[i++] = &plating;
-
-	ship.comps[i++] = &engine;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &plating;
-	ship.comps[i++] = &turret;
-	//ship.comps[i++] = &plating;
-	//ship.comps[i++] = &plating;
-
-	//ship.resize(9, 13);
+	ship.set(4, 0, &engine);
+	ship.set(4, 1, &plating);
+	ship.set(4, 2, &plating);
+	ship.set(4, 3, &plating);
+	ship.set(4, 4, &plating);
+	ship.set(4, 5, &turret);
 
 	while (!glfwWindowShouldClose(universe.frame->handle)) {
 		glfwPollEvents();
@@ -186,12 +163,13 @@ int main() {
 
 		universe.postFrame();
 
-		int width, height;
+		int width, height, winWidth, winHeight;
 		glfwGetFramebufferSize(universe.frame->handle, &width, &height);
+		glfwGetWindowSize(universe.frame->handle, &winWidth, &winHeight);
 
 		glViewport(0, 0, width, height);
 
-		nvgBeginFrame(universe.vg, width, height, 1);
+		nvgBeginFrame(universe.vg, width, height, (float)width / winWidth);
 
 		universe.frame->render(universe.vg);
 
