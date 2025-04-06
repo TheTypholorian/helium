@@ -316,15 +316,13 @@ namespace He {
 		}
 	};
 
-	using ParticleUpdater = mat4(*)(Particle*);
-
 	struct Particle {
 	public:
 		Light light;
-		ParticleUpdater updater;
+		function<void(Particle*, Universe*)> updater;
 		float maxLife, life;
 
-		Particle(Light light, ParticleUpdater updater, float life = 0) : light(light), updater(updater), life(life), maxLife(life) {}
+		Particle(Light light, function<void(Particle*, Universe*)> updater, float life = 0) : light(light), updater(updater), life(life), maxLife(life) {}
 
 		bool frame(Universe* universe) {
 			if (maxLife != 0) {
@@ -335,7 +333,7 @@ namespace He {
 				}
 			}
 
-			updater(this);
+			updater(this, universe);
 
 			universe->lights.push_back(light);
 
@@ -728,13 +726,37 @@ namespace He {
 
 				universe->lights.push_back(Light(mat, (float)239 / 255, (float)217 / 255, (float)105 / 255, 1));
 
-				/*
 				static random_device rd;
 				static mt19937 gen(rd());
-				static uniform_real_distribution<float> check(0, 0.05), color(0, 1), size(0.1, 0.25), alpha(2, 5), life(0.25, 1);
+				static uniform_real_distribution<float> check(0, 0.05), color(0, 1), size(0.1, 0.5), alpha(2, 5), life(0.25, 1);
 
 				if (check(gen) <= universe->delta) {
-					float col = color(gen);
+					float col = color(gen),
+						r = ((float)206 / 255) * col + ((float)255 / 255) * (1 - col),
+						g = ((float)175 / 255) * col + ((float)247 / 255) * (1 - col),
+						b = ((float)0 / 255) * col + ((float)216 / 255) * (1 - col),
+						a = alpha(gen),
+						vx = -ship->mass.vx * universe->zoom / ship->speed, 
+						vy = -ship->mass.vy * universe->zoom / ship->speed,
+						s = size(gen);
+
+					mat = translate(mat, vec3(0.5 - s / 2, 0.5 - s / 2, 0));
+
+					mat = scale(mat, vec3(s));
+
+					universe->particles.addFirst(Particle(
+						Light(mat, r, g, b, a),
+						[r, g, b, a, vx, vy](Particle* p, Universe* universe) {
+							p->light.mat = translate(p->light.mat, vec3(vx * universe->delta, vy * universe->delta, 0));
+							float f = p->life / p->maxLife;
+							p->light.r = f * r;
+							p->light.g = f * g;
+							p->light.b = f * b;
+							p->light.a = f * a;
+						},
+						life(gen)
+					));
+					/*
 					universe->particles.addFirst(Particle(
 						size(gen),
 						((float)206 / 255) * col + ((float)255 / 255) * (1 - col),
@@ -747,8 +769,8 @@ namespace He {
 						-ship->vy * universe->zoom / ship->speed,
 						life(gen)
 					));
+					*/
 				}
-				*/
 			} else {
 				ship->textures[i] = bindless[false];
 			}
