@@ -70,6 +70,9 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LibraryPath>$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -131,12 +134,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\hydrogen\io.cpp" />
     <ClCompile Include="..\libs\nanovg\nanovg.c" />
     <ClCompile Include="helium.cpp" />
+    <ClCompile Include="physics.cpp" />
+    <ClCompile Include="sfx.cpp" />
+    <ClCompile Include="shaders.cpp" />
+    <ClCompile Include="starship.cpp" />
+    <ClCompile Include="tiles.cpp" />
+    <ClCompile Include="universe.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="physics.hpp" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="sfx.hpp" />
+    <ClInclude Include="shaders.hpp" />
     <ClInclude Include="starship.hpp" />
+    <ClInclude Include="main.hpp" />
+    <ClInclude Include="tiles.hpp" />
+    <ClInclude Include="universe.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include=".rc" />

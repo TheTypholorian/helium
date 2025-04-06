@@ -1,4 +1,10 @@
+#include "bitMath.hpp"
+#include "universe.hpp"
 #include "starship.hpp"
+#include "tiles.hpp"
+#include "io.hpp"
+
+#include "stb_image.h"
 #include "stackTrace.hpp"
 #include <sstream>
 #include <filesystem>
@@ -84,19 +90,19 @@ int main() {
 
 	Starship ship(5, 8);
 
-	universe.masses.push_back(&ship.mass);
+	universe.objects.push_back(&ship.phys);
 
-	ship.mass.y = 0;
-	ship.mass.vx = 0;
-	ship.mass.mass = 5;
+	ship.phys.y = 0;
+	ship.phys.vx = 0;
+	ship.phys.mass = 5;
 
 	stbi_set_flip_vertically_on_load(true);
 
-	PlatingComponent plating;
+	PlatingTile plating;
 
-	EngineComponent engine;
+	EngineTile engine;
 
-	TurretComponent turret;
+	TurretTile turret;
 
 	ship.set(0, 0, &engine);
 	ship.set(0, 1, &plating);
