@@ -85,7 +85,7 @@ int main() {
 	string font = loadRes(L"times.ttf", RT_RCDATA);
 	nvgCreateFontMem(universe.vg, "times", (unsigned char*)font.data(), font.length(), false);
 
-	universe.frame->children.addFirst(new FPSCounter(&universe));
+	//universe.frame->children.addFirst(new FPSCounter(&universe));
 	//universe.masses.push_back(new OrbitalMass(0, 0, 0, 0, 5.97219e24));
 
 	Starship ship(5, 8);

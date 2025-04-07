@@ -20,11 +20,13 @@ namespace He {
 
 	struct Particle {
 	public:
-		Light light;
+		vec2 pos;
+		vec4 col;
+		GLfloat size;
 		function<void(Particle*, Universe*)> updater;
 		float maxLife, life;
 
-		Particle(Light light, function<void(Particle*, Universe*)> updater, float life = 0);
+		Particle(vec2 pos, vec4 col, GLfloat size, function<void(Particle*, Universe*)> updater, float life = 0);
 
 		bool frame(Universe* universe);
 	};

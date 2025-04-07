@@ -103,6 +103,8 @@ namespace He {
 
 		viewMat = scale(mat4(1), aRatio > 1 ? vec3(zoom, aRatio * zoom, zoom) : vec3(aRatio * zoom, zoom, zoom));
 
+		glEnable(GL_PROGRAM_POINT_SIZE);
+
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glBlendEquation(GL_FUNC_ADD);
@@ -137,12 +139,6 @@ namespace He {
 	void Universe::postFrame() {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		for (auto node = particles.first; node != particles.last; node = node->next) {
-			if (!node->t.frame(this)) {
-				node->unlink();
-			}
-		}
-
 		glBindVertexArray(vao);
 		glUseProgram(postShader->id);
 
@@ -151,25 +147,7 @@ namespace He {
 
 		glUniform1i(glGetUniformLocation(postShader->id, "uTex"), 0);
 
-		/*
-		glUniform2fv(glGetUniformLocation(postShader->id, "uAspectRatio"), 1, (GLfloat*)value_ptr(uRatio));
-
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightBuf);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, lights.size() * sizeof(Light), lights.data(), GL_STATIC_DRAW);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightBuf);
-		glUniform1ui(glGetUniformLocation(postShader->id, "uNumLights"), lights.size());
-
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, lineBuf);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, lineLights.size() * sizeof(LineLight), lineLights.data(), GL_STATIC_DRAW);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lineBuf);
-		glUniform1ui(glGetUniformLocation(postShader->id, "uNumLineLights"), lineLights.size());
-		*/
-
 		glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
 
 		glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -182,6 +160,88 @@ namespace He {
 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		glBlendEquation(GL_FUNC_ADD);
+
+		GLuint len = 0;
+
+		for (auto node = particles.first; node != nullptr; node = node->next) {
+			if (node->t.frame(this)) {
+				len++;
+			} else {
+				node->unlink();
+			}
+		}
+
+		static GLuint vao = 0, uPos, uCol, uSize;
+		static Shader shader;
+
+		if (vao == 0) {
+			glGenVertexArrays(1, &vao);
+
+			glBindVertexArray(vao);
+
+			glGenBuffers(1, &uPos);
+			glBindBuffer(GL_ARRAY_BUFFER, uPos);
+			glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+			glEnableVertexAttribArray(0);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+			glGenBuffers(1, &uCol);
+			glBindBuffer(GL_ARRAY_BUFFER, uCol);
+			glVertexAttribPointer(1, 4, GL_FLOAT, false, 0, 0);
+			glEnableVertexAttribArray(1);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+			glGenBuffers(1, &uSize);
+			glBindBuffer(GL_ARRAY_BUFFER, uSize);
+			glVertexAttribPointer(2, 1, GL_FLOAT, false, 0, 0);
+			glEnableVertexAttribArray(2);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+			glBindVertexArray(0);
+
+			shader.attach(GL_VERTEX_SHADER, loadRes(L"particle.vert", RT_RCDATA));
+			shader.attach(GL_FRAGMENT_SHADER, loadRes(L"particle.frag", RT_RCDATA));
+			shader.link();
+		}
+
+		vec2* points = new vec2[len];
+		vec4* colors = new vec4[len];
+		GLfloat* sizes = new GLfloat[len];
+
+		uint i = 0;
+		for (Particle p : particles) {
+			points[i] = p.pos;
+			colors[i] = p.col;
+			sizes[i] = p.size;
+			i++;
+		}
+
+		glBindBuffer(GL_ARRAY_BUFFER, uPos);
+		glBufferData(GL_ARRAY_BUFFER, len * sizeof(vec2), points, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, uCol);
+		glBufferData(GL_ARRAY_BUFFER, len * sizeof(vec4), colors, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, uSize);
+		glBufferData(GL_ARRAY_BUFFER, len * sizeof(GLfloat), sizes, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		delete[] points;
+		delete[] colors;
+		delete[] sizes;
+
+		glBindVertexArray(vao);
+		glUseProgram(shader.id);
+
+		glUniformMatrix4fv(glGetUniformLocation(shader.id, "uView"), 1, false, (GLfloat*)value_ptr(viewMat));
+		glUniform1f(glGetUniformLocation(shader.id, "uZoom"), zoom);
+
+		glDrawArrays(GL_POINTS, 0, len);
+
+		glUseProgram(0);
+		glBindVertexArray(0);
 
 		for (Light light : lights) {
 			light.render(this);

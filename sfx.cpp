@@ -76,7 +76,7 @@ namespace He {
 		glBindVertexArray(0);
 	}
 
-	Particle::Particle(Light light, function<void(Particle*, Universe*)> updater, float life) : light(light), updater(updater), life(life), maxLife(life) {}
+	Particle::Particle(vec2 pos, vec4 col, GLfloat size, function<void(Particle*, Universe*)> updater, float life) : pos(pos), col(col), size(size), updater(updater), life(life), maxLife(life) {}
 
 	bool Particle::frame(Universe* universe) {
 		if (maxLife != 0) {
@@ -88,8 +88,6 @@ namespace He {
 		}
 
 		updater(this, universe);
-
-		universe->lights.push_back(light);
 
 		return true;
 	}

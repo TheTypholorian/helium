@@ -160,6 +160,8 @@
   <ItemGroup>
     <None Include="light.frag" />
     <None Include="light.vert" />
+    <None Include="particle.frag" />
+    <None Include="particle.vert" />
     <None Include="post.frag" />
     <None Include="post.vert" />
     <None Include="starship.frag" />

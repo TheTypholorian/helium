@@ -92,23 +92,25 @@ namespace He {
 					g = ((float)175 / 255) * col + ((float)247 / 255) * (1 - col),
 					b = ((float)0 / 255) * col + ((float)216 / 255) * (1 - col),
 					a = alpha(gen),
-					vx = -ship->phys.vx / ship->speed,
-					vy = -ship->phys.vy / ship->speed,
+					vx = -ship->phys.vx,
+					vy = -ship->phys.vy,
 					s = size(gen);
 
 				mat = translate(mat, vec3(0.5 - s / 2, 0.5 - s / 2, 0));
 
 				mat = scale(mat, vec3(s));
 
+				vec4 pos = mat * vec4(0, 0, 0, 1);
+
 				universe->particles.addFirst(Particle(
-					Light(mat, r, g, b, a),
+					vec2(pos.x, pos.y),
+					vec4(r, g, b, a),
+					10,
 					[r, g, b, a, vx, vy](Particle* p, Universe* universe) {
-						p->light.mat = translate(p->light.mat, vec3(vx * universe->delta, vy * universe->delta, 0));
+						p->pos += vec2(vx * universe->delta, vy * universe->delta);
 						float f = p->life / p->maxLife;
-						p->light.r = f * r;
-						p->light.g = f * g;
-						p->light.b = f * b;
-						p->light.a = f * a;
+						p->col = vec4(r, g, b, a) * f;
+						p->size = 10 * f;
 					},
 					life(gen)
 				));
